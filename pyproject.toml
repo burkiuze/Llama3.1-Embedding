@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llama3.1-embedding"
+version = "0.1.0"
+description = "Open-source sentence/document embedding architecture built on Meta Llama 3.1 base (independent project)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+keywords = ["embeddings", "sentence-embeddings", "retrieval", "llama", "contrastive-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.1",
+    "transformers>=4.43",
+]
+
+[project.optional-dependencies]
+lora = ["peft>=0.11"]
+numpy = ["numpy>=1.24"]
+yaml = ["pyyaml>=6.0"]
+accelerate = ["accelerate>=0.30"]
+benchmark = ["mteb>=1.12"]
+vectorstore = ["faiss-cpu>=1.7"]
+dev = ["pytest>=7.4"]
+
+[project.urls]
+Homepage = "https://github.com/burkiuze/Llama3.1-Embedding"
+Repository = "https://github.com/burkiuze/Llama3.1-Embedding"
+Issues = "https://github.com/burkiuze/Llama3.1-Embedding/issues"
+
+[tool.setuptools]
+# NOTE: Meta's Llama 3.1 weights are NOT part of this package. They are
+# downloaded by transformers at runtime after the user accepts Meta's licence.
+[tool.setuptools.packages.find]
+include = ["llama_embedding*", "training*", "evaluation*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

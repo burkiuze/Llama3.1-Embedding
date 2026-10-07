@@ -1,0 +1,70 @@
+# Base configuration for Llama3.1-Embedding.
+#
+# Every value here can be overridden on the command line:
+#   python -m training.train --config configs/base.yaml --mode lora --batch-size 8
+#
+# The backbone is Meta's Llama 3.1 BASE model (not Instruct). Access to those
+# weights is gated: accept the licence at https://www.llama.com/llama3_1/ and
+# authenticate locally. This repository never ships the weights.
+
+embedding:
+  backbone_name_or_path: "meta-llama/Llama-3.1-8B"
+  embedding_dim: 768
+  pooling: "mean"
+  hidden_size: 4096          # Llama 3.1 8B; overridden from the loaded config
+  max_length: 512
+  normalize: true
+  use_layer_norm: true
+  bias: false
+  dtype: "bfloat16"         # float32 | float16 | bfloat16 | auto
+  device: null               # null = auto-detect (cuda if available, else cpu)
+  attn_implementation: null  # e.g. "flash_attention_2" when installed
+  trust_remote_code: false
+  prompts:
+    query: ""                # e.g. "query: " - configurable, not hard coded
+    document: ""
+  matryoshka_dims: []        # e.g. [1024, 768, 512, 384, 256] to enable MRL
+
+training:
+  train_file: "data/sample/train.jsonl"
+  eval_file: null
+  validation_split: 0.1
+  seed: 42
+  shuffle: true
+  dedupe: true
+  num_hard_negatives: 1
+  hard_negative_strategy: "provided"   # provided | random | mixed
+
+  mode: "projection_only"   # projection_only | lora | full
+  batch_size: 8
+  eval_batch_size: 8
+  gradient_accumulation_steps: 1
+  learning_rate: 0.00002
+  head_learning_rate: 0.0001  # projection head usually wants a larger LR
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  max_epochs: 1
+  max_steps: -1
+  max_grad_norm: 1.0
+
+  temperature: 0.02         # documented software default, tunable
+  similarity_metric: "cosine"
+  symmetric_loss: false
+  label_smoothing: 0.0
+
+  mixed_precision: "auto"   # auto | no | fp16 | bf16
+  gradient_checkpointing: false
+  num_workers: 0
+  log_every: 1
+  eval_every: 50
+  save_every: 50
+  fail_on_nan: true
+
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  output_dir: "runs/base"
+  resume_from: null
+  save_total_limit: 2

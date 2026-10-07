@@ -1,0 +1,53 @@
+# LoRA training: adapt selected Llama 3.1 attention projections + the head.
+#
+# Requires `pip install peft`. With r=16 on q/k/v/o the trainable set is roughly
+# 0.1-0.2% of the backbone, plus the projection head. Cheaper in memory than
+# full fine-tuning and usually better than projection-only when the corpus is
+# large enough.
+#
+#   pip install "peft>=0.11"
+#   python -m training.train --config configs/lora.yaml
+
+embedding:
+  backbone_name_or_path: "meta-llama/Llama-3.1-8B"
+  embedding_dim: 768
+  pooling: "mean"
+  hidden_size: 4096
+  max_length: 512
+  normalize: true
+  use_layer_norm: true
+  dtype: "bfloat16"
+  prompts:
+    query: ""
+    document: ""
+
+training:
+  train_file: "data/sample/train.jsonl"
+  validation_split: 0.1
+  seed: 42
+
+  mode: "lora"
+  batch_size: 4
+  gradient_accumulation_steps: 4      # effective batch 16
+  learning_rate: 0.00002
+  head_learning_rate: 0.0001
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  max_epochs: 1
+  max_grad_norm: 1.0
+  temperature: 0.02
+  similarity_metric: "cosine"
+
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  mixed_precision: "bf16"
+  gradient_checkpointing: true       # needed: backbone activations are retained
+  num_workers: 2
+  log_every: 10
+  eval_every: 100
+  save_every: 100
+
+  output_dir: "runs/lora-768"

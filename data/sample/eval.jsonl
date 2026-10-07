@@ -1,0 +1,17 @@
+{"id": "d1", "text": "A search and rescue drone is an unmanned aerial vehicle used to locate missing persons."}
+{"id": "d2", "text": "Paris is the capital city of France."}
+{"id": "d3", "text": "Mount Everest is the highest mountain above sea level at 8,849 metres."}
+{"id": "d4", "text": "list.append adds an item to the end of a Python list."}
+{"id": "d5", "text": "A thermal imaging camera visualises infrared heat signatures."}
+{"id": "d6", "text": "Hamlet is a tragedy written by William Shakespeare."}
+{"id": "d7", "text": "The Pacific Ocean is the largest ocean on Earth."}
+{"id": "d8", "text": "A passenger aircraft carries hundreds of paying passengers between cities."}
+{"id": "d9", "text": "A barcode scanner reads machine-readable product labels."}
+{"id": "d10", "text": "The Caspian Sea is the largest inland body of water."}
+{"query_id": "q1", "query": "drone for finding missing people", "relevant_ids": ["d1"]}
+{"query_id": "q2", "query": "what is the capital city of france", "relevant_ids": ["d2"]}
+{"query_id": "q3", "query": "how high is the tallest mountain", "relevant_ids": ["d3"]}
+{"query_id": "q4", "query": "adding an element to a python list", "relevant_ids": ["d4"]}
+{"query_id": "q5", "query": "camera that sees heat", "relevant_ids": ["d5"]}
+{"query_id": "q6", "query": "playwright who wrote hamlet", "relevant_ids": ["d6"]}
+{"query_id": "q7", "query": "biggest ocean on the planet", "relevant_ids": ["d7"]}

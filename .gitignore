@@ -1,0 +1,124 @@
+# ---------------------------------------------------------------------------
+# Secrets and credentials — never commit these
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.env
+*.token
+token
+hf_token
+*.key
+*.pem
+credentials.json
+secrets.yaml
+secrets.yml
+.huggingface/
+hf_home/
+
+# ---------------------------------------------------------------------------
+# Model weights, checkpoints and adapters
+# ---------------------------------------------------------------------------
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.gguf
+*.onnx
+*.h5
+*.msgpack
+*.model
+checkpoints/
+runs/
+outputs/
+wandb/
+*.adapter
+*.safetensors.index.json
+
+# ---------------------------------------------------------------------------
+# Datasets (nothing but the tiny fixtures in data/sample is tracked)
+# ---------------------------------------------------------------------------
+data/**/*.jsonl
+!data/sample/*.jsonl
+data/**/*.parquet
+data/**/*.arrow
+data/**/*.csv
+data/**/*.tsv
+data/datasets/
+datasets/
+*.jsonl.gz
+
+# ---------------------------------------------------------------------------
+# Hugging Face / torch caches
+# ---------------------------------------------------------------------------
+.cache/
+**/.cache/
+hub/
+transformers_cache/
+torch_cache/
+*.cache
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+__pypackages__
+
+# ---------------------------------------------------------------------------
+# Virtual environments
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ---------------------------------------------------------------------------
+# Tooling / editors / OS
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Logs and local notes
+# ---------------------------------------------------------------------------
+*.log
+logs/
+*.out
+NOTES.local.md
+*.local.*

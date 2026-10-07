@@ -1,0 +1,8 @@
+{"query": "how tall is mount everest", "positive": "Mount Everest rises 8,849 metres above sea level.", "negative": "Mount Everest is located in the Alps."}
+{"query": "what is the capital of france", "positive": "Paris is the capital and most populous city of France.", "negative": "Lyon is the second largest city in France."}
+{"query": "search and rescue drone", "positive": "An unmanned aerial vehicle equipped for search and rescue operations.", "negative": "A passenger jet flying between London and New York."}
+{"query": "emergency response aircraft", "positive": "A fixed-wing aircraft used to reach remote areas during emergencies.", "negative": "A cargo train transporting freight across Europe."}
+{"query": "python list append", "positive": "list.append(item) adds an element to the end of a Python list.", "negative": "numpy.concatenate joins two arrays along an axis."}
+{"query": "thermal imaging camera", "positive": "A thermal camera detects infrared radiation to visualise heat signatures.", "negative": "A barcode scanner reads printed product codes."}
+{"query": "who wrote hamlet", "positive": "Hamlet was written by William Shakespeare around 1600.", "negative": "Macbeth was written by Christopher Marlowe."}
+{"query": "largest ocean on earth", "positive": "The Pacific Ocean is the largest and deepest ocean on Earth.", "negative": "The Caspian Sea is the largest inland body of water."}

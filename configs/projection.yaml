@@ -1,0 +1,47 @@
+# Projection-only training: freeze Llama 3.1 8B, train only the embedding head.
+#
+# This is the cheapest and most stable starting point. The backbone runs in
+# inference mode (no gradients, no optimiser state); only
+# Linear(4096 -> 768) + LayerNorm are trained, i.e. ~3.1M parameters
+# (~0.04% of the 8B model).
+#
+#   python -m training.train --config configs/projection.yaml
+
+embedding:
+  backbone_name_or_path: "meta-llama/Llama-3.1-8B"
+  embedding_dim: 768
+  pooling: "mean"
+  hidden_size: 4096
+  max_length: 256
+  normalize: true
+  use_layer_norm: true
+  dtype: "bfloat16"
+  prompts:
+    query: ""
+    document: ""
+
+training:
+  train_file: "data/sample/train.jsonl"
+  validation_split: 0.1
+  seed: 42
+
+  mode: "projection_only"
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  learning_rate: 0.00002
+  head_learning_rate: 0.0005     # the head is the only thing learning
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  max_epochs: 1
+  max_grad_norm: 1.0
+  temperature: 0.02
+  similarity_metric: "cosine"
+
+  mixed_precision: "bf16"
+  gradient_checkpointing: false  # not needed: no activations are retained
+  num_workers: 2
+  log_every: 10
+  eval_every: 100
+  save_every: 100
+
+  output_dir: "runs/projection-768"

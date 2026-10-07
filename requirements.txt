@@ -1,0 +1,22 @@
+# Core runtime dependencies for Llama3.1-Embedding.
+#
+# NOTE: PyTorch has no prebuilt wheels for every platform. On x86_64/aarch64
+# Linux, macOS and Windows install the CPU build from the index below; on a
+# CUDA machine prefer the matching CUDA wheel:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+#
+# The unit test-suite does NOT require transformers or a Llama checkpoint; it
+# uses a tiny stub backbone and synthetic tensors.
+
+torch>=2.1
+transformers>=4.43      # AutoModel + Llama 3.1 tokenizer
+
+# --- optional ---------------------------------------------------------------
+# peft>=0.11            # mode: lora
+# numpy>=1.24           # saving embeddings as .npy
+# pyyaml>=6.0           # only if you prefer PyYAML over the built-in config parser
+# accelerate>=0.30      # device_map / low-memory loading of the backbone
+# sentencepiece>=0.1.99  # Llama 3.1 tokenizer fast-path
+# faiss-cpu             # optional vector index
+# mteb>=1.12            # optional benchmark harness
+# pytest>=7.4           # test suite
