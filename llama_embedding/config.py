@@ -331,11 +331,9 @@ class EmbeddingConfig:
             )
         if self.hidden_size <= 0:
             raise ConfigError(f"hidden_size must be positive, got {self.hidden_size}")
-        if self.embedding_dim > self.hidden_size:
-            raise ConfigError(
-                f"embedding_dim ({self.embedding_dim}) cannot exceed hidden_size "
-                f"({self.hidden_size})"
-            )
+        # NOTE: embedding_dim > hidden_size is intentionally allowed. A widening
+        # Linear(hidden -> embedding_dim) is valid and is what Matryoshka-style
+        # setups want (project a small backbone up to a large embedding space).
         if self.max_length <= 0:
             raise ConfigError(f"max_length must be positive, got {self.max_length}")
         if self.max_length > 131072:

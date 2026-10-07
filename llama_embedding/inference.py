@@ -97,20 +97,24 @@ class SemanticSearchIndex:
         query_vectors: Optional[torch.Tensor] = None,
     ) -> Union[List[SearchResult], List[List[SearchResult]]]:
         """Return the ``top_k`` most similar documents per query."""
-        if self.embeddings is None:
-            raise RuntimeError("index has no embeddings; build it with SemanticSearchIndex.build()")
+        if self.embeddings is None or self.embeddings.numel() == 0:
+            raise RuntimeError(
+                "index holds no embeddings; build it with SemanticSearchIndex.build()"
+            )
         if top_k <= 0:
             raise ValueError(f"top_k must be positive, got {top_k}")
         k = min(top_k, self.embeddings.shape[0])
 
         # Decide the return shape *before* `queries` is consumed: a single
-        # string or a [1, D] tensor yields a flat list of results, anything
-        # else yields one list per query.
-        single = isinstance(queries, str) or (
-            isinstance(queries, torch.Tensor) and queries.dim() == 2 and queries.shape[0] == 1
-        )
+        # string, a [D] vector or a [1, D] batch yields a flat list of results;
+        # anything else yields one list per query.
         if isinstance(queries, torch.Tensor):
             query_vectors = queries
+        single = isinstance(queries, str) or (
+            query_vectors is not None
+            and query_vectors.dim() in (1, 2)
+            and query_vectors.shape[0] == 1
+        )
         if query_vectors is None:
             raise ValueError(
                 "search() needs precomputed query vectors: pass query_vectors=<Tensor> "

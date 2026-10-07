@@ -111,11 +111,29 @@ def test_info_nce_rejects_dim_mismatch():
         info_nce(torch.randn(3, 4), torch.randn(3, 8))
 
 
-def test_info_nce_label_smoothing_reduces_confidence():
+def test_info_nce_label_smoothing_flattens_the_distribution():
+    """Smoothing spreads mass off the diagonal, so it cannot exceed the hard loss.
+
+    Cross-entropy against a uniform target is a mixture of the one-hot loss and a
+    constant, so smoothing always *reduces* (or leaves) the value. The earlier
+    expectation that it increases the loss was simply wrong.
+    """
     torch.manual_seed(8)
     q = l2_normalize(torch.randn(6, 16))
     d = l2_normalize(torch.randn(6, 16))
-    assert info_nce(q, d, label_smoothing=0.2).item() >= info_nce(q, d).item()
+    hard = info_nce(q, d).item()
+    smooth = info_nce(q, d, label_smoothing=0.2).item()
+    assert smooth <= hard + 1e-6
+
+
+def test_info_nce_label_smoothing_reduces_confidence_on_a_wrong_prediction():
+    """Where it does raise the loss is a badly wrong prediction."""
+    torch.manual_seed(81)
+    q = l2_normalize(torch.randn(8, 16))
+    d = -q  # diagonal is the worst possible match
+    hard = info_nce(q, d).item()
+    smooth = info_nce(q, d, label_smoothing=0.2).item()
+    assert smooth > hard
 
 
 def test_info_nce_rejects_invalid_label_smoothing():
@@ -129,15 +147,40 @@ def test_info_nce_rejects_invalid_label_smoothing():
 # --------------------------------------------------------------------------- #
 
 
-def test_pairwise_info_nce_prefers_true_positive():
+def test_pairwise_info_nce_lower_when_positive_is_clearly_separated():
+    """A positive far from every negative must score better than a confusing one.
+
+    Note the direction: a negative that sits *close* to the positive is HARD and
+    yields a HIGH loss, so this asserts the opposite of an intuition trap.
+    """
     torch.manual_seed(9)
     q = l2_normalize(torch.randn(6, 16))
     p = l2_normalize(torch.randn(6, 16))
-    close_neg = p + 0.2 * l2_normalize(torch.randn(6, 16))
-    far_neg = l2_normalize(torch.randn(6, 16))
-    near = pairwise_info_nce(q, p, close_neg, temperature=0.05)
-    far = pairwise_info_nce(q, p, far_neg, temperature=0.05)
-    assert near.item() > far.item()
+    hard_neg = l2_normalize(p + 0.05 * torch.randn(6, 16))   # nearly identical
+    easy_neg = l2_normalize(torch.randn(6, 16))              # clearly different
+    hard = pairwise_info_nce(q, p, hard_neg, temperature=0.05)
+    easy = pairwise_info_nce(q, p, easy_neg, temperature=0.05)
+    assert hard.item() > easy.item()
+
+
+def test_pairwise_info_nce_zero_when_positive_perfectly_separated():
+    """pos = +1, neg = -1 exactly -> the objective reaches its floor."""
+    q = torch.tensor([[1.0, 0.0], [1.0, 0.0], [1.0, 0.0], [1.0, 0.0]])
+    p = q.clone()
+    n = -q.clone()
+    loss = pairwise_info_nce(q, p, n, temperature=0.05)
+    assert loss.item() < 1e-4
+
+
+def test_pairwise_info_nce_is_max_over_negatives():
+    """Adding a harder negative must not decrease the loss."""
+    torch.manual_seed(30)
+    q = l2_normalize(torch.randn(4, 16))
+    p = l2_normalize(torch.randn(4, 16))
+    far = l2_normalize(torch.randn(4, 1, 16))
+    both = l2_normalize(torch.cat([far, p.unsqueeze(1) + 0.02 * torch.randn(4, 1, 16)], dim=1))
+    assert pairwise_info_nce(q, p, both, temperature=0.05).item() >= \
+        pairwise_info_nce(q, p, far, temperature=0.05).item() - 1e-5
 
 
 def test_pairwise_info_nce_accepts_multiple_negatives():

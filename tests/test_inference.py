@@ -11,7 +11,6 @@ import pytest
 torch = pytest.importorskip("torch")
 
 from llama_embedding.inference import SemanticSearchIndex, SearchResult, rank_documents
-from llama_embedding.projection import l2_normalize
 
 
 DOCS = [

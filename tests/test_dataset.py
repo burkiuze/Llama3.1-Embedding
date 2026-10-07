@@ -132,11 +132,16 @@ def test_same_seed_same_order(triplet_file):
 
 
 def test_different_seed_different_order(triplet_file):
-    a, _ = build_datasets(triplet_file, validation_split=0.0, seed=1)
-    b, _ = build_datasets(triplet_file, validation_split=0.0, seed=2)
-    # With only 3 rows a collision is possible, but seeds should differ
-    # in the permutation for these inputs.
-    assert [e.query for e in a] != [e.query for e in b] or len(a) <= 1
+    """With 3 rows, two distinct seeds must not always produce the same order.
+
+    Rather than assume a specific permutation differs, assert that across a few
+    seed pairs at least one differs (a 3! search over 2 samples is deterministic).
+    """
+    orders = []
+    for seed in range(1, 8):
+        dataset, _ = build_datasets(triplet_file, validation_split=0.0, seed=seed)
+        orders.append(tuple(e.query for e in dataset))
+    assert len(set(orders)) > 1, "different seeds produced identical orders"
 
 
 def test_shuffle_false_preserves_file_order(triplet_file):
@@ -223,28 +228,56 @@ def test_collator_produces_padded_tensors():
 
 
 def test_collator_pads_with_mask_zeros():
+    """Right padding: the shorter query gets mask=0 in the extra columns."""
     tokenizer = DummyTokenizer(vocab_size=1024)
     collator = ContrastiveCollator(tokenizer=tokenizer, max_length=16)
     features = [
-        {"queries": "one two three", "positives": "one two", "negatives": []},
+        {"queries": "one two three four", "positives": "one two", "negatives": []},
         {"queries": "a", "positives": "b c d e f", "negatives": []},
     ]
     batch = collator(features)
     mask = batch["query"]["attention_mask"]
-    # Row 0 has 3 real tokens then padding.
-    assert mask[0].tolist() == [1, 1, 1, 0]
-    assert mask[1].tolist() == [1, 0, 0, 0]
+    assert mask.shape == (2, 4)
+    assert mask[0].tolist() == [1, 1, 1, 1]   # 4 real tokens, no padding
+    assert mask[1].tolist() == [1, 0, 0, 0]   # 1 real token + 3 padding
+    # Padded positions must not carry a real token id.
+    assert mask[1].tolist()[1:] == [0, 0, 0]
+
+
+def test_collator_mask_marks_exactly_the_real_tokens():
+    """Independent of padding width: mask sum == number of whitespace words."""
+    tokenizer = DummyTokenizer(vocab_size=1024)
+    collator = ContrastiveCollator(tokenizer=tokenizer, max_length=16)
+    features = [
+        {"queries": "one two three four", "positives": "a b", "negatives": []},
+        {"queries": "a", "positives": "b c d e f", "negatives": []},
+    ]
+    batch = collator(features)
+    qmask = batch["query"]["attention_mask"]
+    pmask = batch["positive"]["attention_mask"]
+    assert int(qmask[0].sum()) == 4 and int(qmask[1].sum()) == 1
+    assert int(pmask[0].sum()) == 2 and int(pmask[1].sum()) == 5
 
 
 def test_collator_applies_prompt_templates():
+    """The template prefix adds one token on each side (DummyTokenizer splits on space)."""
     tokenizer = DummyTokenizer(vocab_size=1024)
-    prompts = PromptTemplates(query="query: ", document="passage: ")
+    prompts = PromptTemplates(query="Q:", document="D:")
     collator = ContrastiveCollator(tokenizer=tokenizer, max_length=16, prompts=prompts)
     features = [{"queries": "hello", "positives": "world", "negatives": []}]
     batch = collator(features)
-    # The query side gains the extra "query" prefix token.
-    assert batch["query"]["attention_mask"][0].sum() == 3  # 'hello' + 'query:'
-    assert batch["positive"]["attention_mask"][0].sum() == 3  # 'world' + 'passage:'
+    # "hello" -> 1 token; with the "Q:" prefix -> 2.
+    assert int(batch["query"]["attention_mask"][0].sum()) == 2
+    assert int(batch["positive"]["attention_mask"][0].sum()) == 2
+
+    # And the prefix really is in the text: a longer prefix adds proportionally.
+    longer = ContrastiveCollator(
+        tokenizer=tokenizer, max_length=16,
+        prompts=PromptTemplates(query="Q Q:", document="D D:"),
+    )
+    batch2 = longer(features)
+    assert int(batch2["query"]["attention_mask"][0].sum()) == 3
+    assert int(batch2["positive"]["attention_mask"][0].sum()) == 3
 
 
 def test_collator_with_negatives_shapes():

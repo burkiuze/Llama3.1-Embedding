@@ -31,12 +31,26 @@ __all__ = [
 
 
 def _validate(rankings: torch.Tensor, relevances: torch.Tensor) -> None:
-    if rankings.shape != relevances.shape:
+    """Check the two matrices are index-compatible.
+
+    ``rankings`` may be narrower than ``relevances`` because it holds only the
+    top-``depth`` document ids, which are used to *gather* from a
+    full-corpus-width relevance matrix. It must never be wider.
+    """
+    if rankings.dim() != 2 or relevances.dim() != 2:
         raise ValueError(
-            f"rankings {tuple(rankings.shape)} and relevances {tuple(relevances.shape)} must match"
+            f"expected 2-D [num_queries, k] matrices; got {tuple(rankings.shape)} "
+            f"and {tuple(relevances.shape)}"
         )
-    if rankings.dim() != 2:
-        raise ValueError(f"expected 2-D [num_queries, k]; got {tuple(rankings.shape)}")
+    if rankings.shape[0] != relevances.shape[0]:
+        raise ValueError(
+            f"query count differs: rankings {rankings.shape[0]} vs relevances {relevances.shape[0]}"
+        )
+    if rankings.shape[1] > relevances.shape[1]:
+        raise ValueError(
+            f"rankings ({rankings.shape[1]} deep) cannot be wider than the corpus "
+            f"({relevances.shape[1]})"
+        )
 
 
 def ranking_from_scores(scores: torch.Tensor, top_k: Optional[int] = None) -> torch.Tensor:
@@ -82,14 +96,24 @@ def hit_rate_at_k(rankings: torch.Tensor, relevances: torch.Tensor, k: int = 10)
 def mrr(rankings: torch.Tensor, relevances: torch.Tensor) -> float:
     """Mean Reciprocal Rank over the full ranking depth.
 
-    Queries with no relevant document in the ranking are skipped (the standard
-    behaviour); if that leaves nothing, the result is 0.0.
+    Standard MRR uses the reciprocal rank of the **first** relevant document.
+    Summing the reciprocal ranks of every relevant document is a different
+    quantity (and can exceed 1.0), which would make MRR incomparable with
+    published results.
+
+    Queries with no relevant document in the ranking are skipped; if that leaves
+    nothing, the result is 0.0.
     """
     _validate(rankings, relevances)
     rel = relevances.gather(1, rankings)  # relevance in rank order
     is_rel = (rel > 0).float()
     positions = torch.arange(1, rankings.shape[1] + 1, device=rankings.device, dtype=torch.float32)
-    reciprocal = is_rel / positions.unsqueeze(0)
+    # Keep only the FIRST relevant document per query: count how many relevant
+    # documents strictly precede this position; it is the first iff that count
+    # is zero. (A cummax-based mask would keep every relevant document.)
+    relevant_before = is_rel.cumsum(dim=1) - is_rel
+    is_first = is_rel * (relevant_before == 0)
+    reciprocal = is_first / positions.unsqueeze(0)
     has_any = is_rel.sum(dim=1) > 0
     if not bool(has_any.any()):
         return 0.0
@@ -160,8 +184,17 @@ def evaluate_rankings(
     top_k: Optional[int] = None,
     ks: Sequence[int] = (1, 5, 10),
 ) -> Dict[str, float]:
-    """Rank ``scores`` then compute metrics in one call."""
-    rankings = ranking_from_scores(scores, top_k=top_k)
+    """Rank ``scores`` then compute metrics in one call.
+
+    The ranking depth is ``top_k`` when given, otherwise ``max(ks)``. Only the
+    ranking is truncated: the relevance matrix keeps the full corpus width
+    because rankings store document ids that are used to index it.
+    """
+    if scores.shape != relevances.shape:
+        raise ValueError(
+            f"scores {tuple(scores.shape)} and relevances {tuple(relevances.shape)} must match"
+        )
     depth = top_k or max(ks)
-    rankings = rankings[:, : min(depth, rankings.shape[1])]
+    depth = min(depth, scores.shape[1])
+    rankings = ranking_from_scores(scores, top_k=depth)
     return retrieval_metrics(rankings, relevances, ks=ks)

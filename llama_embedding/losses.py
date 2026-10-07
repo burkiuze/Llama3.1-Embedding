@@ -149,14 +149,13 @@ def pairwise_info_nce(
     else:
         q, p, n = queries, positives, negatives
 
-    pos_scores = (q * p).sum(dim=-1).unsqueeze(1) if metric == "cosine" else (q * p).sum(-1, keepdim=True)
-    if metric == "cosine":
-        neg_scores = torch.einsum("bd,bkd->bk", q, n)
-    elif metric == "dot":
-        neg_scores = torch.einsum("bd,bkd->bk", q, n)
-    elif metric == "euclidean":
+    if metric == "euclidean":
+        # Negative distance: larger is better, consistent with similarity.
         pos_scores = -(q - p).norm(dim=-1, keepdim=True)
         neg_scores = -torch.cdist(q.unsqueeze(1), n).squeeze(1)
+    elif metric in ("cosine", "dot"):
+        pos_scores = torch.einsum("bd,bd->b", q, p).unsqueeze(1)
+        neg_scores = torch.einsum("bd,bkd->bk", q, n)
     else:
         raise ValueError(f"unsupported metric {metric!r}")
 

@@ -202,9 +202,12 @@ def test_config_rejects_unsupported_dim():
         EmbeddingConfig(embedding_dim=100)
 
 
-def test_config_rejects_dim_above_hidden_size():
-    with pytest.raises(ValueError, match="cannot exceed hidden_size"):
-        EmbeddingConfig(hidden_size=512, embedding_dim=1024)
+def test_config_allows_embedding_dim_above_hidden_size():
+    """A widening projection is valid and is what Matryoshka setups need."""
+    config = EmbeddingConfig(hidden_size=64, embedding_dim=1024)
+    assert config.embedding_dim == 1024
+    head = EmbeddingHead(hidden_size=64, embedding_dim=1024)
+    assert head(torch.randn(3, 64)).shape == (3, 1024)
 
 
 def test_config_rejects_bad_pooling():

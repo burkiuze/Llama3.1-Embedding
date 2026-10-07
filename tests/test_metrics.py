@@ -134,11 +134,32 @@ def test_ndcg_worst_case_low(worst_setup):
 
 
 def test_ndcg_rewards_early_relevant():
-    """Moving the relevant document earlier must increase NDCG."""
-    relevances = torch.tensor([[1.0, 1.0, 1.0]])
-    early = torch.tensor([[0, 1, 2]])
-    late = torch.tensor([[2, 1, 0]])
+    """Moving a single relevant document earlier must increase NDCG.
+
+    Note: with *all* documents relevant, any permutation yields the same DCG, so
+    the test uses exactly one relevant document moved between ranks.
+    """
+    relevances = torch.tensor([[1.0, 0.0, 0.0]])
+    early = torch.tensor([[0, 1, 2]])   # relevant doc at rank 1
+    late = torch.tensor([[2, 1, 0]])    # relevant doc at rank 3
     assert ndcg_at_k(early, relevances, k=3) > ndcg_at_k(late, relevances, k=3)
+
+
+def test_ndcg_single_relevant_at_rank2():
+    """One relevant doc at rank 2 of 3 gives DCG = 1/log2(3), IDCG = 1."""
+    import math
+
+    rankings = torch.tensor([[1, 0, 2]])
+    relevances = torch.tensor([[1.0, 0.0, 0.0]])
+    expected = 1.0 / math.log2(3)
+    assert ndcg_at_k(rankings, relevances, k=3) == pytest.approx(expected, abs=1e-6)
+
+
+def test_ndcg_is_permutation_invariant_when_all_relevant():
+    """Guards the subtlety above: all-relevant means any order scores 1.0."""
+    relevances = torch.tensor([[1.0, 1.0, 1.0]])
+    assert ndcg_at_k(torch.tensor([[0, 1, 2]]), relevances, k=3) == pytest.approx(1.0)
+    assert ndcg_at_k(torch.tensor([[2, 1, 0]]), relevances, k=3) == pytest.approx(1.0)
 
 
 def test_ndcg_increases_with_k(perfect_setup):
@@ -208,6 +229,58 @@ def test_evaluate_rankings_end_to_end():
     metrics = evaluate_rankings(scores, relevances, ks=(1, 2))
     assert metrics["recall@1"] == pytest.approx(1.0)
     assert metrics["mrr"] == pytest.approx(1.0)
+
+
+def test_mrr_uses_first_relevant_only_not_the_sum():
+    """Regression: summing every reciprocal rank could exceed 1.0 (gave 1.5).
+
+    Standard MRR is the reciprocal rank of the FIRST relevant document.
+    """
+    rankings = torch.tensor([[0, 1]])
+    relevances = torch.tensor([[1.0, 1.0]])   # both documents relevant
+    assert mrr(rankings, relevances) == pytest.approx(1.0)
+
+
+def test_mrr_stays_within_unit_interval():
+    torch.manual_seed(0)
+    rankings = torch.stack([torch.randperm(20) for _ in range(25)])
+    relevances = (torch.rand(25, 20) > 0.5).float()
+    value = mrr(rankings, relevances)
+    assert 0.0 <= value <= 1.0
+
+
+def test_mrr_ignores_relevant_after_first_hit():
+    """A relevant doc at rank 2 must not change the score when rank 1 also hits."""
+    early = torch.tensor([[0, 1, 2]])
+    late = torch.tensor([[1, 0, 2]])
+    relevances = torch.tensor([[1.0, 1.0, 0.0]])
+    assert mrr(early, relevances) == pytest.approx(1.0)
+    assert mrr(late, relevances) == pytest.approx(1.0)
+
+
+def test_evaluate_rankings_handles_corpus_larger_than_k():
+    """Regression: rankings were truncated to K=10 while relevances stayed full width."""
+    scores = torch.arange(20, dtype=torch.float32).unsqueeze(0)      # [1, 20]
+    relevances = torch.ones(1, 20)
+    relevances[0, 0] = 1.0
+    metrics = evaluate_rankings(scores, relevances, ks=(1, 5, 10))
+    assert metrics["recall@1"] == pytest.approx(1.0)
+    assert all(0.0 <= v <= 1.0 for v in metrics.values())
+
+
+def test_evaluate_rankings_rejects_shape_mismatch():
+    with pytest.raises(ValueError, match="must match"):
+        evaluate_rankings(torch.randn(1, 20), torch.ones(1, 10))
+
+
+def test_evaluate_rankings_honours_explicit_top_k():
+    scores = torch.arange(20, dtype=torch.float32).unsqueeze(0)
+    relevances = torch.zeros(1, 20)
+    relevances[0, 15] = 1.0
+    # With depth 10 the relevant doc at index 15 is outside the ranking -> 0.
+    assert evaluate_rankings(scores, relevances, top_k=10, ks=(10,))["recall@10"] == pytest.approx(0.0)
+    # With depth 20 it is included and ranked first (highest score).
+    assert evaluate_rankings(scores, relevances, top_k=20, ks=(20,))["recall@20"] == pytest.approx(1.0)
 
 
 def test_metrics_reject_shape_mismatch():
